@@ -1,0 +1,169 @@
+# coding=utf-8
+PROJECT = 'compare-proxy'
+DEBUG = False
+HTTP_SERVER_SETTING = {
+    'process_num': 4,
+    'port': #httpPort#
+}
+
+ZOOKEEPER_SETTING = {
+    'enable': True,
+    # zk的地址，多个逗号分隔
+    'server_address': '#zookeeperHosts#',
+    # 本机要注册到zk上的ip
+    'local_ip': '#localIp#',
+    'local_name': 'compare-proxy',
+    'base_dir': '#zookeeperPath#',
+    'default_nodes': {},
+    'reconnect_interval': 10
+}
+
+PROXY_SETTING = [
+    # 获取系统状态
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=SystemInfo"
+        ],
+        "proxy_type": "all",
+        "request_timeout": "2",
+        "response_handler": "StatusProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 添加元素，AB比对
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=AddElement&LibraryType=[34]",
+            "/V1/ComparisonServer\\?LibraryType=[34]&CmdType=AddElement",
+            "/V1/ComparisonServer\\?CmdType=CompareAB"
+        ],
+        "proxy_type": "loop",
+        "request_timeout": "3",
+        "response_handler": "LoopProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 比对
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=Compare&SyncType=1&LibraryType=[34]"
+        ],
+        "proxy_type": "all",
+        "request_timeout": "120",
+        "response_handler": "CompareProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 按日期删除
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=DeleteDataByTime&LibraryType=[34]"
+        ],
+        "proxy_type": "all",
+        "request_timeout": "10",
+        "response_handler": "AllProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 人脸相关配置（libraryType=1,2）
+    # 人脸这里单独配置主要考虑到显卡问题，比对有时依赖显卡，机器ip和其他会有差异
+    # 增加/删除库--内存模式人像库--调用所有内存比对服务
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=CreateLibrary&LibraryType=[1]",
+            "/V1/ComparisonServer\\?CmdType=DeleteLibrary&LibraryType=[1]",
+        ],
+        "proxy_type": "all",
+        "request_timeout": "5",
+        "response_handler": "AllProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 增加/删除库--显卡模式人像库--调用所有带显卡的比对服务
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=CreateLibrary&LibraryType=[2]",
+            "/V1/ComparisonServer\\?CmdType=DeleteLibrary&LibraryType=[2]",
+        ],
+        "proxy_type": "all",
+        "request_timeout": "5",
+        "response_handler": "AllProxyResponseHandler",
+        "server_list": #gpuCompareUrls#
+    },
+    # 增元素--内存模式--调用任意内存比对服务
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=AddElement&LibraryType=[1]",
+            "/V1/ComparisonServer\\?LibraryType=[1]&CmdType=AddElement",
+        ],
+        "proxy_type": "loop",
+        "request_timeout": "3",
+        "response_handler": "LoopProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 增元素--显卡模式--调用任意显卡的比对服务
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=AddElement&LibraryType=[2]",
+            "/V1/ComparisonServer\\?LibraryType=[2]&CmdType=AddElement",
+        ],
+        "proxy_type": "loop",
+        "request_timeout": "3",
+        "response_handler": "LoopProxyResponseHandler",
+        "server_list": #gpuCompareUrls#
+    },
+    # 删元素--内存模式--调用所有内存比对服务
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=DeleteElement&LibraryType=[1]",
+            "/V1/ComparisonServer\\?LibraryType=[1]&CmdType=DeleteElement",
+        ],
+        "proxy_type": "loop",
+        "request_timeout": "3",
+        "response_handler": "AllProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 删元素--显卡模式--调用所有带显卡的比对服务
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=DeleteElement&LibraryType=[2]",
+            "/V1/ComparisonServer\\?LibraryType=[2]&CmdType=DeleteElement",
+        ],
+        "proxy_type": "loop",
+        "request_timeout": "3",
+        "response_handler": "AllProxyResponseHandler",
+        "server_list": #gpuCompareUrls#
+    },
+
+    # ** 人像库人脸比对--混合--极特殊，会给所有比对服务发两次请求，一次比对内存，一次比对显卡 **
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=Compare&SyncType=1&LibraryType=1,2"
+        ],
+        "proxy_type": "face_lib_mixed",
+        "request_timeout": "120",
+        "response_handler": "CompareProxyMixedResponseHandler",
+        "server_list": #compareUrls#,
+        "real_request_urls": [
+            "/V1/ComparisonServer\\?CmdType=Compare&SyncType=1&LibraryType=1",
+            "/V1/ComparisonServer\\?CmdType=Compare&SyncType=1&LibraryType=2"
+        ]
+    },
+    # 人像库人脸比对--内存
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=Compare&SyncType=1&LibraryType=[1]"
+        ],
+        "proxy_type": "all",
+        "request_timeout": "120",
+        "response_handler": "CompareProxyResponseHandler",
+        "server_list": #compareUrls#
+    },
+    # 人像库人脸比对--显存
+    {
+        "url_pattern": [
+            "/V1/ComparisonServer\\?CmdType=Compare&SyncType=1&LibraryType=[2]"
+        ],
+        "proxy_type": "all",
+        "request_timeout": "120",
+        "response_handler": "CompareProxyResponseHandler",
+        "server_list": #gpuCompareUrls#
+    }
+]
+# 不要随便动该配置，默认为False
+FAKEREQUEST = False

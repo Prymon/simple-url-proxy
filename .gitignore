@@ -1,0 +1,16 @@
+# Windows:
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python:
+*.py[cod]
+dist
+build
+
+nohup.out
+*.tar.bz2
+# My configurations:
+db.ini
+deploy_key_rsa
+*.swp
